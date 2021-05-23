@@ -1,1 +1,67 @@
+## Naming standards
+1. Avoid using mixed case while creating database objects i.e table, column, stored procedure, etc  
 
+## Features
+1. Standard time travel is 7 days. If exception is needed, please work with DBAs 
+2. If you are planning to load PII data elements, please let DBAs know so appropriate roles can be setup with data masking 
+3. To manage slowly changing dimensions or date chaining, use streams on the database. It will be very efficient and better way to identify what changed.   
+## Performance
+1. **Snowflake is a ANSI SQL compliant relational database platform and data modeling is very important. For analytic use cases, either Star schema or Snowflake schema normalized structure is preferred** Please remember the following while creating structures on Snowflake or any relational database 
+   * All columns that have metrics should be numeric so data can be summarized. 
+   * While snowflake does not enforce referential integrity, it is a best practice to add primary key and foreign key on the table. 
+         Primary key uniquely identifies each row on the table
+         Foreign key links the table to other table. 
+   * Antipattern - Not a good practice to create table with Sparse data in columns. For example, having a table with 500 columns and depending on values in one column, we decide which columns have data. This type of "unnormalized" data will be NON performant  
+   * Antipattern - Don't use case statement or scalar functions in join conditions
+   * **Data Modelling is important** -  [Example Datamodel]![](https://github.nwie.net/Nationwide/snowflake/blob/master/DataModel.JPG)
+2. It is recommended that tables have cluster key defined which will be used for data pruning. Candidate columns are generally dates.  
+3. It is recommended that we don’t have NULLs in the data. Please provide default values instead, so joins are efficient.  
+4. When loading the data, please have files that are 10-100MB in size. Compress the data before loading if possible.
+5. Processing 
+   a) Before you run delete, run a select statement to confirm how many rows will be impacted. Change ‘delete from’ to select star from
+   b) To check data in the table as of previous day, run the following sql. 
+
+6. Data type 
+Snowflake also has introduced a VARIANT data type for semi-structured data storage (AVRO, JSON, XML, Parquet, and others).
+
+### More details
+•	Denormalization
+•	Surrogate keys
+•	Indexing
+•	Partitioning
+•	Views
+•	Dimensionality
+ 
+Class word standard 
+| Data Types | Description |
+| --- | ----------- |
+|Numeric Data Types	|NUMBER	|Default precision and scale are (38,0).
+|Numeric Data Types	|DECIMAL |	Synonymous with NUMBER.
+|Numeric Data Types	|NUMERIC |	Synonymous with NUMBER.
+|Numeric Data Types	|INT, INTEGER, BIGINT, SMALLINT|	Synonymous with NUMBER except precision and scale cannot be specified.
+|Numeric Data Types	|FLOAT, FLOAT4, FLOAT8 [1]	
+|Numeric Data Types	|DOUBLE [1]	|Synonymous with FLOAT.
+|Numeric Data Types	|DOUBLE PRECISION [1]	|Synonymous with FLOAT.
+|Numeric Data Types	|REAL [1]	|Synonymous with FLOAT.
+|String & Binary Data Types	|VARCHAR	|Default (and maximum) is 16,777,216 bytes.
+|String & Binary Data Types	|CHAR, CHARACTER	|Synonymous with VARCHAR except default length is VARCHAR(1).
+|String & Binary Data Types	|STRING	|Synonymous with VARCHAR.
+|String & Binary Data Types	|TEXT	|Synonymous with VARCHAR.
+|String & Binary Data Types	|BINARY	
+|String & Binary Data Types	|VARBINARY|	Synonymous with BINARY.
+|Logical Data Types	|BOOLEAN	|Currently only supported for accounts provisioned after January 25, 2016.
+|Date & Time Data Types	|DATE	|
+|Date & Time Data Types	|DATETIME|	Alias for TIMESTAMP_NTZ
+|Date & Time Data Types	|TIME	|
+|Date & Time Data Types	|TIMESTAMP|	Alias for one of the TIMESTAMP variations (TIMESTAMP_NTZ by default).
+|Date & Time Data Types	|TIMESTAMP_LTZ|	TIMESTAMP with local time zone; time zone, if provided, is not stored.
+|Date & Time Data Types	|TIMESTAMP_NTZ|	TIMESTAMP with no time zone; time zone, if provided, is not stored.
+|Date & Time Data Types	|TIMESTAMP_TZ	| TIMESTAMP with time zone.
+|Semi-structured Data Types	|VARIANT	
+|Semi-structured Data Types	|OBJECT	
+|Semi-structured Data Types	|ARRAY	
+|Geospatial Data Types	|GEOGRAPHY	
+
+That is so funny! :joy:
+## Connectivity Best practices 
+[Connectivity Best Practices](https://onyourside.sharepoint.com/:w:/r/sites/edo/_layouts/15/Doc.aspx?sourcedoc=%7B81B83687-3463-44DD-A8C1-086406E23D3C%7D&file=Snowflake%20Connectivity%20Best%20Practices.docx&action=default&mobileredirect=true)
