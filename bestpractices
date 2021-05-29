@@ -24,6 +24,10 @@
 6. Data type 
 Snowflake also has introduced a VARIANT data type for semi-structured data storage (AVRO, JSON, XML, Parquet, and others).
 
+7. Replication 
+Store external tables in separate schema. Data replication for DR/HA doesn't support external tables 
+
+[Connectivity Best Practices](https:/Howtoconnect)
 ### More details
 •	Denormalization
 •	Surrogate keys
