@@ -1,0 +1,72 @@
+# Script to load/create text files from hive
+connection_string="jdbc:hive2://nhplbigi3002.nwie.net:2181,nhplbigi3003.nwie.net:2181,nhplbigi3005.nwie.net:2181/;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2"
+location=/home/xxxxxx/snowflake
+hive_db=idmlab_pc_claimsanalytics
+sf_db=pncclaims
+sf_schema=dailydashboard
+s3_loc=s3://nwsnowflake/pncclaims/dailydashboard
+table=$1
+
+out_create=${location}/create_snowflake.txt
+out_load=${location}/load_snowflake.txt
+out_stage=${location}/stage_snowflake.txt
+out_copy=${location}/copy_snowflake.txt
+tmp=${location}/tmp.txt
+
+#####################################
+###   Create table in snowflake   ###
+#####################################
+
+# Describe table from hive
+beeline -u $connection_string -e "describe ${hive_db}.${table}" > $tmp
+
+# Clean up output
+cat $tmp | grep '|' | grep -v data_type | cut -d'|' -f1-3 | tr -d ' \t' | tr '|' ' ' > $out_create
+
+# Add comma to all lines except last line
+sed -i -e "$ ! s/$/,/" $out_create
+
+# Insert create table statement at top of file
+sed -i "1 i\CREATE TABLE ${sf_db}.${sf_schema}.$table (" $out_create
+
+# Close brackets and end create table statement
+echo ");" >> $out_create
+
+###################################
+###   Stage data in snowflake   ###
+###################################
+echo "use database $sf_db ;" > $out_stage
+echo "use schema $sf_schema ;" >> $out_stage
+echo "create or replace stage $table" >> $out_stage
+echo "storage_integration = snowflake_ino_storage_integration" >> $out_stage
+echo "URL = '${s3_loc}/${table}/';" >> $out_stage
+
+# Optional truncate
+echo "truncate table $table ;" >> $out_stage
+
+##################################
+###   Load data in snowflake   ###
+##################################
+
+echo "
+copy into $table
+from @${table}/
+file_format = (type = csv field_delimiter = ',' trim_space=true field_optionally_enclosed_by = '0x22')
+force=true
+ON_ERROR=continue
+;
+" > $out_load
+
+###############################
+###  Combine stage and load ###
+###############################
+cat $out_stage > $out_copy
+cat $out_load >> $out_copy
+
+##########################
+###   Clean up files   ###
+##########################
+rm $out_stage
+rm $out_load
+rm $tmp
+
