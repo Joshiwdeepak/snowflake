@@ -1,0 +1,85 @@
+
+
+SELECT SEQ4() as hr 
+FROM TABLE(GENERATOR(ROWCOUNT=>24));
+
+create or replace table minutes as
+SELECT minute 
+FROM (SELECT SEQ4() as minute
+FROM TABLE(GENERATOR(ROWCOUNT=>60)))A 
+WHERE  mod (minute, 15) = 0  
+;
+
+select * from minutes
+;
+
+
+create table hours as
+SELECT SEQ4() as hr
+FROM TABLE(GENERATOR(ROWCOUNT=>24));
+
+
+CREATE OR REPLACE TABLE time_dim (
+  time_id bigint not null
+  , MY_DATE          DATE        NOT NULL
+  ,YEAR             SMALLINT    NOT NULL
+  ,MONTH            SMALLINT    NOT NULL
+  ,MONTH_NAME       CHAR(3)     NOT NULL
+  ,DAY_OF_MON       SMALLINT    NOT NULL
+  ,DAY_OF_WEEK      VARCHAR(9)  NOT NULL
+  ,WEEK_OF_YEAR     SMALLINT    NOT NULL
+  ,DAY_OF_YEAR      SMALLINT    NOT NULL
+) AS 
+  WITH CTE_MY_DATE AS (
+    SELECT DATEADD(DAY, SEQ4(), '2021-08-01') AS MY_DATE
+      FROM TABLE(GENERATOR(ROWCOUNT=>62))  -- Number of days after reference date in previous line
+  )
+  SELECT SEQ8(), 
+        MY_DATE
+        ,YEAR(MY_DATE)
+        ,MONTH(MY_DATE)
+        ,MONTHNAME(MY_DATE)
+        ,DAY(MY_DATE)
+        ,DAYOFWEEK(MY_DATE)
+        ,WEEKOFYEAR(MY_DATE)
+        ,DAYOFYEAR(MY_DATE)
+    FROM CTE_MY_DATE;
+
+Create or Replace view Time_dim_v as 
+select t.my_date, dateadd(minute, h.hr * 60 + m.minute, t.my_date) as master_minute 
+from time_dim t
+cross join hours h
+cross join minutes m
+--cross join store_dim s
+--left outer join store_sales ss on dateadd(minute, h.hr * 60 + m.minute, t.my_date) = ss.sales_minute
+--    and s.store_id = ss.store_id
+where t.my_date between DATEADD(DAY, -7, CURRENT_TIMESTAMP()) and  DATEADD(DAY, 0, CURRENT_TIMESTAMP())
+;
+
+Select * from time_dim_v ;
+
+
+SELECT master_minute
+      ,WAREHOUSE_NAME
+      ,COUNT(*) AS NUM_QUERIES
+FROM time_dim_v
+LEFT OUTER JOIN SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY
+ON  DATE_TRUNC('MINUTE', START_TIME) = master_minute
+AND START_TIME >= DATEADD(DAY, -7, CURRENT_TIMESTAMP())  // Past 7 days
+AND   WAREHOUSE_NAME in ('CLAIMSPCDS_LAB_L_WH_PROD'
+,'CLAIMSPCDS_SILVER_L_WH_DEVL'
+,'CLAIMSPCDS_SILVER_L_WH_PROD'
+,'CLAIMSPCDS_SILVER_Q_WH_DEVL'
+,'PCDS_SDW_Q_WH_PROD'
+,'PCDS_Q_WH_PROD'
+,'PCDS_CLAIM_L_WH_PROD'
+,'CLAIMSPCDS_L_WH_PROD'
+,'PCDS_CLAIM_Q_WH_PROD'                         
+)
+GROUP BY 1, 2
+ORDER BY 1 , 2
+;
+
+
+
+ 
