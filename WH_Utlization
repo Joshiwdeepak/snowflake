@@ -1,0 +1,59 @@
+show warehouses;
+
+create or replace table t_warehouse_list as 
+select *
+from table(result_scan(last_query_id()));
+
+with usage as (
+select  u.warehouse_id
+    ,       u.warehouse_name
+    ,       sum(total_elapsed_time)/1000/3600 elapsed_query_hours
+    ,       count(u.warehouse_id) query_counts 
+    ,       case 
+                when wh."size"='X-Small'  then 1 
+                when wh."size"= 'Small'   then 2 
+                when wh."size"='Medium'   then 4 
+                when wh."size"='Large'    then 8 
+                when wh."size"='X-Large'  then 16 
+                when wh."size"='2X-Large' then 32
+                when wh."size"='3X-Large' then 64 
+                when wh."size"='4X-Large' then 128 
+            end as vwh_node_count
+    ,       wh."size" as wh_size
+    ,       wh."auto_suspend" as auto_suspend
+    ,       (   select sum(credits_used)
+                from snowflake.account_usage.warehouse_metering_history wmh 
+                where wmh.warehouse_id = u.warehouse_id
+                and   wmh.start_time > dateadd(day, -7, current_date())
+            ) as credits_used  
+    from snowflake.account_usage.query_history u
+    join t_warehouse_list wh 
+        on wh."name" = u.warehouse_name
+    where u.start_time > dateadd(day, -7, current_date()) 
+    group by u.warehouse_id
+    ,        u.warehouse_name
+    ,       case 
+            when wh."size"='X-Small'  then 1 
+            when wh."size"= 'Small'   then 2 
+            when wh."size"='Medium'   then 4 
+            when wh."size"='Large'    then 8 
+            when wh."size"='X-Large'  then 16 
+            when wh."size"='2X-Large' then 32
+            when wh."size"='3X-Large' then 64 
+            when wh."size"='4X-Large' then 128 
+        end
+    ,   wh."size"
+    ,   wh."auto_suspend" 
+) 
+select  usage.warehouse_name
+,       round(usage.elapsed_query_hours,2) as elapsed_query_hours
+,       usage.query_counts
+,       usage.credits_used
+,       usage.wh_size
+,       usage.vwh_node_count
+,       round(usage.credits_used / usage.vwh_node_count,2) as elapsed_billed_hours
+,       round(usage.elapsed_query_hours / elapsed_billed_hours * 100,1) as utilisation_pct
+,       usage.auto_suspend
+from    usage
+order by 4 desc nulls last
+;
