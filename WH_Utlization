@@ -1,3 +1,5 @@
+use role sysadmin ; 
+
 show warehouses;
 
 create or replace table t_warehouse_list as 
@@ -51,8 +53,8 @@ select  usage.warehouse_name
 ,       usage.credits_used
 ,       usage.wh_size
 ,       usage.vwh_node_count
-,       round(usage.credits_used / usage.vwh_node_count,2) as elapsed_billed_hours
-,       round(usage.elapsed_query_hours / elapsed_billed_hours * 100,1) as utilisation_pct
+,       round(usage.credits_used / nullifzero(usage.vwh_node_count),2) as elapsed_billed_hours
+,       round(usage.elapsed_query_hours / nullifzero (elapsed_billed_hours) * 100,1) as utilisation_pct
 ,       usage.auto_suspend
 from    usage
 order by 4 desc nulls last
